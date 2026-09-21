@@ -26,21 +26,128 @@ from .schema import Choice, DecisionResult, Noul, Question, Score, parse_answers
 
 OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Sensible comparison targets, all verified present on OpenRouter. The first is
-# the model TypeSafe themselves used for the launch side-by-side, on the grounds
-# that it was the closest match to Jev's intelligence on System One tasks.
-LLM_MODEL_CHOICES = [
-    "openai/gpt-5.6-terra",
-    "openai/gpt-5.6-sol",
-    "openai/gpt-5.6-luna",
-    "openai/gpt-6-astra",
-    "anthropic/claude-opus-5",
-    "anthropic/claude-sonnet-5",
-    "anthropic/claude-fable-5.1",
-    "anthropic/claude-haiku-4.5",
-    "google/gemini-3.8-flash",
-    "deepseek/deepseek-v4.1-flash",
+
+# --------------------------------------------------------------------------
+# Comparison model catalogue
+# --------------------------------------------------------------------------
+#
+# All slugs below were verified present in OpenRouter's live `/api/v1/models`
+# response. They carry a regional-availability flag because this demo is used
+# from Hong Kong, where two of the major vendors do not offer service:
+#
+#   * OpenAI publishes an allow-list of supported countries and territories and
+#     states that anywhere absent from it is unsupported. Hong Kong is absent.
+#   * Anthropic's supported-countries list runs ...Honduras, Hungary... with no
+#     Hong Kong entry, and no mention of Macau or mainland China.
+#   * Google, by contrast, opened Gemini to Hong Kong in March 2026.
+#
+# An important nuance, which is why restricted models are hidden rather than
+# deleted: calls here go through OpenRouter, so the upstream request is made by
+# OpenRouter's infrastructure and not from the user's own IP. Whether that
+# satisfies a given vendor's terms is a compliance judgement for the operator,
+# not something this app should decide silently. So the default list is
+# HK-clean, and the rest stay reachable behind an explicit opt-in that states
+# the reason.
+
+HK_AVAILABLE = "available"
+HK_RESTRICTED = "restricted"
+HK_UNVERIFIED = "unverified"
+
+
+@dataclass(frozen=True)
+class LLMOption:
+    """A selectable comparison model and its regional status."""
+
+    id: str
+    vendor: str
+    hk_status: str
+    note: dict[str, str] | None = None
+
+    @property
+    def available_in_hk(self) -> bool:
+        return self.hk_status == HK_AVAILABLE
+
+
+_OPENAI_NOTE = {
+    "en": (
+        "OpenAI publishes an allow-list of supported countries and territories "
+        "and treats anything absent from it as unsupported. Hong Kong is not on "
+        "that list."
+    ),
+    "zh-TW": (
+        "OpenAI 公布的是「支援國家與地區」白名單，"
+        "並將名單之外的所有地區視為不支援。香港並不在該名單上。"
+    ),
+}
+_ANTHROPIC_NOTE = {
+    "en": (
+        "Anthropic's supported-countries list has no Hong Kong entry, and "
+        "claude.ai geofences the territory."
+    ),
+    "zh-TW": (
+        "Anthropic 的支援國家清單中沒有香港，且 claude.ai 對該地區設有地理封鎖。"
+    ),
+}
+_XAI_NOTE = {
+    "en": (
+        "No clear published position on Hong Kong either way, so it is left out "
+        "of the default list rather than assumed safe."
+    ),
+    "zh-TW": (
+        "xAI 並未明確公布對香港的支援狀態，因此不預設納入清單，而非逕行假定可用。"
+    ),
+}
+
+LLM_CATALOGUE: list[LLMOption] = [
+    # -- Available in Hong Kong -------------------------------------------
+    LLMOption("google/gemini-3.8-flash", "Google", HK_AVAILABLE),
+    LLMOption("google/gemini-3.5-flash", "Google", HK_AVAILABLE),
+    LLMOption("deepseek/deepseek-v4-pro", "DeepSeek", HK_AVAILABLE),
+    LLMOption("deepseek/deepseek-v4.1-flash", "DeepSeek", HK_AVAILABLE),
+    LLMOption("qwen/qwen3.8-max-0902", "Alibaba", HK_AVAILABLE),
+    LLMOption("moonshotai/kimi-k3", "Moonshot", HK_AVAILABLE),
+    LLMOption("z-ai/glm-5.3", "Zhipu", HK_AVAILABLE),
+    LLMOption("minimax/minimax-m3", "MiniMax", HK_AVAILABLE),
+    LLMOption("mistralai/mistral-medium-3-5", "Mistral", HK_AVAILABLE),
+    LLMOption("meta-llama/llama-4-maverick", "Meta", HK_AVAILABLE),
+    # -- Not offered in Hong Kong by the vendor ---------------------------
+    LLMOption("openai/gpt-5.6-terra", "OpenAI", HK_RESTRICTED, _OPENAI_NOTE),
+    LLMOption("openai/gpt-5.6-sol", "OpenAI", HK_RESTRICTED, _OPENAI_NOTE),
+    LLMOption("openai/gpt-6-astra", "OpenAI", HK_RESTRICTED, _OPENAI_NOTE),
+    LLMOption("anthropic/claude-opus-5", "Anthropic", HK_RESTRICTED, _ANTHROPIC_NOTE),
+    LLMOption("anthropic/claude-sonnet-5", "Anthropic", HK_RESTRICTED, _ANTHROPIC_NOTE),
+    LLMOption(
+        "anthropic/claude-fable-5.1", "Anthropic", HK_RESTRICTED, _ANTHROPIC_NOTE
+    ),
+    LLMOption("x-ai/grok-4.6", "xAI", HK_UNVERIFIED, _XAI_NOTE),
 ]
+
+# Default comparison model: the strongest HK-available option that is also cheap
+# enough to run repeatedly while exploring the demo.
+DEFAULT_LLM_MODEL = "google/gemini-3.8-flash"
+
+# Kept for callers that just want every slug.
+LLM_MODEL_CHOICES = [option.id for option in LLM_CATALOGUE]
+
+
+def llm_model_choices(include_restricted: bool = False) -> list[str]:
+    """Slugs offered in the picker, filtered by regional availability."""
+    return [
+        option.id
+        for option in LLM_CATALOGUE
+        if include_restricted or option.available_in_hk
+    ]
+
+
+def llm_option(model_id: str) -> LLMOption | None:
+    for option in LLM_CATALOGUE:
+        if option.id == model_id:
+            return option
+    return None
+
+
+def restricted_options() -> list[LLMOption]:
+    return [option for option in LLM_CATALOGUE if not option.available_in_hk]
 
 SYSTEM_PROMPT = """\
 You are a calibrated decision engine embedded inside a software workflow. You \
@@ -64,7 +171,7 @@ input.
 @dataclass
 class LLMConfig:
     api_key: str = ""
-    model: str = "openai/gpt-5.6-terra"
+    model: str = DEFAULT_LLM_MODEL
     timeout: float = 180.0
     temperature: float = 0.0
     max_tokens: int = 4096

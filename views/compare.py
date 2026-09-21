@@ -82,30 +82,9 @@ def render(settings: AppSettings) -> None:
     questions = st.session_state.get(STATE_KEY + "_questions", questions)
 
     st.divider()
-    if settings.llm_available and run.llm.ok:
-        ui.render_comparison_summary(run, lang)
-        st.divider()
-
-    jev_column, llm_column = st.columns(2)
-
-    with jev_column:
-        st.subheader(t("common.jev"))
-        ui.render_result_header(run.jev, lang)
-        ui.render_type_safety(run.jev, lang)
-        st.markdown(f"**{t('common.answers')}**")
-        ui.render_answers(run.jev, questions, lang)
-        ui.render_raw(run.jev, lang)
-
-    with llm_column:
-        st.subheader(t("common.llm"))
-        if not run.llm.ok:
-            st.error(f"**{t('common.error', )}:** {run.llm.error}")
-        else:
-            ui.render_result_header(run.llm, lang)
-            ui.render_type_safety(run.llm, lang)
-            st.markdown(f"**{t('common.answers')}**")
-            ui.render_answers(run.llm, questions, lang)
-            ui.render_raw(run.llm, lang)
+    # Aligned section by section, so each question's two answers sit in the
+    # same row instead of drifting apart as the columns fill unevenly.
+    ui.render_side_by_side(run, questions, lang)
 
     if run.deltas:
         st.divider()

@@ -46,8 +46,8 @@ switchable from the sidebar at any time:
 | **What is Jev?** | Explains System One models, RLCD, and the three question types, with a full comparison table against LLMs and an honest caveats section. |
 | **Cost & Latency Model** | Project the decision layer of a workflow out to your own volume, including the cascade pattern where Jev decides which requests deserve an LLM. |
 | **10 Demo Use Cases** | Ten small working apps. Each shows the state, the questions, the typed answers, the resulting action, a decision trace, and the **verbatim branching code** that produced it. |
-| **Jev vs LLM** | Same state, same questions, both engines, run concurrently. Measures latency, cost, per-question agreement, and schema violations. |
-| **Playground** | Compose an arbitrary state and any mix of the three question types, inspect the generated request body, and send it. |
+| **Jev vs LLM** | Same state, same questions, both engines, run concurrently. Measures latency, cost, per-question agreement, and schema violations, laid out so the two sides stay aligned row by row. |
+| **Playground** | Eight ready-made scenarios to load in one click, then a stepped editor — state, questions, run — with typed quick-add buttons for each of the three question types. |
 
 ### A look at it
 
@@ -65,10 +65,20 @@ And the cost model makes the case for the cascade pattern concrete:
 
 ![The cost and latency model, showing cascade cost against escalation share](docs/07-cascade.png)
 
+The playground opens on a loadable example, with a stepped editor and one
+quick-add button per question type:
+
+![The playground, showing the example library and the stepped state-then-questions editor](docs/08-playground.png)
+
+Dark mode is a sidebar toggle, and applies everywhere:
+
+![The same use-case page rendered in dark mode](docs/09-dark-mode.png)
+
 > Screenshots were taken in simulated mode with no API key, which is why the
-> `SIMULATED` badge is present. The `繁體中文` sidebar option renders as boxes
-> only because the capture container has no CJK font installed; it displays
-> correctly in a real browser.
+> `SIMULATED` badge is present and why the two-engine comparison layout is not
+> shown — it needs a real LLM response. The `繁體中文` sidebar option renders as
+> boxes only because the capture container has no CJK font installed; it
+> displays correctly in a real browser.
 
 ---
 
@@ -102,18 +112,68 @@ For convenience you can also seed defaults from the environment:
 cp .env.example .env
 ```
 
-| Variable | Purpose |
-|---|---|
-| `OPENROUTER_API_KEY` | Pre-fills the sidebar key field. |
-| `JEV_MODEL` | Default Jev slug, e.g. `typesafe/jev-latest`. |
-| `COMPARE_LLM_MODEL` | Default comparison LLM, e.g. `openai/gpt-5.6-terra`. |
+| Variable | Purpose | Default |
+|---|---|---|
+| `OPENROUTER_API_KEY` | Pre-fills the sidebar key field. | — |
+| `JEV_MODEL` | Jev slug to use. | `typesafe/jev-1.13` |
+| `COMPARE_LLM_MODEL` | Comparison LLM. | `google/gemini-3.8-flash` |
 
 Streamlit secrets (`.streamlit/secrets.toml`) are also read if present. The key
 is held in the browser session only — the app never writes it to disk.
 
-Sidebar settings: API key, Jev transport, Jev model, comparison LLM, an LLM
-on/off toggle, language, and an advanced group for reasoning effort,
-temperature, and request timeout.
+Sidebar settings: language, **light/dark appearance**, API key, Jev transport,
+Jev model, comparison LLM with a regional-availability filter, an LLM on/off
+toggle, and an advanced group for reasoning effort, temperature, and request
+timeout.
+
+### Why the Jev model is pinned by default
+
+The picker defaults to `typesafe/jev-1.13` rather than `typesafe/jev-latest`.
+TypeSafe's own advice is to pin once you have tuned thresholds, because
+`jev-latest` follows new releases and answers can shift underneath you. Every
+threshold in the ten demos was chosen against 1.13, so pinning is what keeps
+them reproducible. `typesafe/jev-latest` is still one click away in the picker,
+and the response's `model` field always reports the exact versioned release that
+answered.
+
+### Regional availability of comparison models
+
+This demo is used from Hong Kong, where two of the major vendors do not offer
+service, so the comparison picker is filtered by default:
+
+| Vendor | Hong Kong | In the default list? |
+|---|---|---|
+| Google (Gemini) | Available — opened to Hong Kong in March 2026 | Yes |
+| DeepSeek, Alibaba (Qwen), Moonshot (Kimi), Zhipu (GLM), MiniMax | Available | Yes |
+| Mistral, Meta (Llama) | Available | Yes |
+| **OpenAI** | Publishes an allow-list of supported countries and treats anything absent as unsupported. Hong Kong is absent. | No |
+| **Anthropic** | Supported-countries list runs *…Honduras, Hungary…* with no Hong Kong entry; `claude.ai` geofences the territory. | No |
+| **xAI (Grok)** | No clear published position either way. | No — not assumed safe |
+
+There is a real nuance here, which is why those models are *hidden rather than
+deleted*. Calls in this app go through OpenRouter, so the upstream request is
+made by OpenRouter's infrastructure and not from your own IP. Whether that
+satisfies a given vendor's terms is a compliance judgement for whoever operates
+the demo, not something this app should quietly decide. So the sidebar has a
+**"Show models not offered in Hong Kong"** checkbox, off by default, which
+reveals them with the specific reason attached. Any slug can also be typed
+directly into the picker.
+
+One knock-on effect worth flagging: TypeSafe's launch write-up compares Jev
+against GPT-5.6 Terra, which is in the restricted group. The prose on the *What
+is Jev?* page still cites those published figures, but reproducing that exact
+pairing needs the checkbox enabled.
+
+### Light and dark mode
+
+The sidebar has an **Appearance** control. Streamlit has no public API for
+switching themes at runtime — `st.set_option` explicitly refuses `theme.base` —
+so `jevdemo/theme.py` sets it through the internal config module and reruns,
+which the frontend does pick up. Two caveats are documented in that module:
+it is a private API and degrades to a no-op rather than raising if a future
+release locks it down, and Streamlit config is process-global rather than
+per-session, so on a shared deployment one visitor's choice repaints the app for
+everyone. Fine for a local demo; not a pattern to copy into production.
 
 ---
 
@@ -332,6 +392,18 @@ outside the declared range, a missing key, a bare scalar where an object was
 required, or output that is not JSON at all. That count is the type-safety
 comparison, measured rather than asserted.
 
+The results are laid out to be *readable* as a comparison, which took some care.
+A column per engine drifts out of step as soon as the two sides differ in height,
+and they always do — an LLM reports several schema violations where Jev reports
+none, and a five-option choice renders taller than a two-level score. Once the
+columns are offset you are no longer comparing answers side by side. So every
+section opens a fresh row, each question's two answers are always in the same
+row with the question stated once above them, and a per-question badge marks
+agreement. On the use-case pages there is one more row worth the trouble: the
+LLM's answers are fed through the *same* branching code, so you can see whether
+the application would actually have behaved differently. A disagreement that
+changes the action is the only kind that matters.
+
 Two honest notes on reading the results:
 
 - **Agreement is not correctness.** Neither column is ground truth. A
@@ -378,8 +450,12 @@ jevdemo/
                                 agreement, speed-up, and cost ratio.
   i18n.py                       English + Traditional Chinese strings.
   settings.py                   Sidebar menu -> AppSettings -> configured clients.
+  theme.py                      Runtime light/dark switching, and the reasons
+                                it has to be done the awkward way.
+  playground_examples.py        Eight loadable playground scenarios.
   ui.py                         Shared rendering: answer cards, probability
-                                bars, metrics, delta tables.
+                                bars, metrics, delta tables, and the aligned
+                                two-engine comparison layout.
   usecases/
     base.py                     UseCase / Sample / Outcome, and the registry.
     cases_routing.py            Demos 1-4
@@ -474,7 +550,14 @@ running it yourself:
   `POST /api/alpha/decisions` request schema from
   <https://openrouter.ai/openapi.json>; the documented example response decodes
   correctly; the LLM output validator catches invented enum options,
-  out-of-range values, missing keys, bare scalars, and non-JSON output.
+  out-of-range values, missing keys, bare scalars, and non-JSON output; all
+  eight playground examples build and validate against the same schema; the
+  Hong Kong filter excludes every OpenAI, Anthropic and xAI slug by default; and
+  the light/dark toggle was confirmed by reading the computed background of
+  `.stApp` before and after switching (`#FFFFFF` → `#0E1117` → back).
+  The aligned two-engine layout was checked against a deliberately lopsided
+  stubbed LLM response — disagreements, a missing answer, and several schema
+  violations — since that unevenness is the case the layout exists to handle.
 - **Not verified.** No live call has been made against the real endpoint from
   this repo, because no API key was available while it was written. The wire
   format is built and schema-checked against OpenRouter's published

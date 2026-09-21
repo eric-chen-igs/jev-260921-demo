@@ -71,6 +71,43 @@ STRINGS: dict[str, dict[str, str]] = {
         "zh-TW": "關閉後只會執行 Jev。LLM 呼叫明顯較慢，且會產生實際費用。",
     },
     "sidebar.language": {"en": "Language", "zh-TW": "語言"},
+    "sidebar.appearance": {"en": "Appearance", "zh-TW": "外觀"},
+    "sidebar.theme_light": {"en": "Light", "zh-TW": "淺色"},
+    "sidebar.theme_dark": {"en": "Dark", "zh-TW": "深色"},
+    "sidebar.theme_unsupported": {
+        "en": (
+            "This Streamlit build does not allow switching the theme from the "
+            "app. Use the toolbar menu (top right) → Settings → Appearance."
+        ),
+        "zh-TW": (
+            "此 Streamlit 版本不允許由應用程式內切換主題。"
+            "請改用右上角工具列選單 → Settings → Appearance。"
+        ),
+    },
+    "sidebar.region": {"en": "Region", "zh-TW": "地區"},
+    "sidebar.show_restricted": {
+        "en": "Show models not offered in Hong Kong",
+        "zh-TW": "顯示未在香港提供服務的模型",
+    },
+    "sidebar.show_restricted_help": {
+        "en": (
+            "Off by default: OpenAI and Anthropic do not list Hong Kong as a "
+            "supported territory. Calls still go through OpenRouter rather than "
+            "direct, so whether that is acceptable is your compliance call."
+        ),
+        "zh-TW": (
+            "預設關閉：OpenAI 與 Anthropic 均未將香港列為支援地區。"
+            "由於呼叫是透過 OpenRouter 而非直接連線，是否可接受屬於你自身的法遵判斷。"
+        ),
+    },
+    "sidebar.hk_filtered": {
+        "en": "Showing models available in Hong Kong.",
+        "zh-TW": "僅顯示在香港可用的模型。",
+    },
+    "sidebar.restricted_selected": {
+        "en": "This model's vendor does not list Hong Kong as supported.",
+        "zh-TW": "此模型的供應商並未將香港列為支援地區。",
+    },
     "sidebar.advanced": {"en": "Advanced", "zh-TW": "進階設定"},
     "sidebar.timeout": {"en": "Request timeout (s)", "zh-TW": "請求逾時（秒）"},
     "sidebar.reasoning": {"en": "LLM reasoning effort", "zh-TW": "LLM 推理強度"},
@@ -124,6 +161,8 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     "common.question": {"en": "Question", "zh-TW": "問題"},
     "common.agree": {"en": "Agree", "zh-TW": "一致"},
+    "common.differs": {"en": "Differs", "zh-TW": "不一致"},
+    "common.no_answer": {"en": "no answer returned", "zh-TW": "未回傳答案"},
     "common.gap": {"en": "Gap", "zh-TW": "差距"},
     "common.free": {"en": "free", "zh-TW": "免費"},
     "common.probabilities": {"en": "Probabilities", "zh-TW": "機率分布"},
@@ -538,6 +577,31 @@ Jev 有兩種呼叫途徑，本應用皆支援，可於側邊欄切換。
         "zh-TW": "執行前編輯狀態",
     },
     "usecases.trace": {"en": "Decision trace", "zh-TW": "決策軌跡"},
+    "usecases.outcome_compare": {
+        "en": "What the same code did with each engine's answers",
+        "zh-TW": "同一段程式碼在兩種引擎答案下的實際結果",
+    },
+    "usecases.same_action": {
+        "en": (
+            "Both engines led the application to the same action, so the "
+            "differences above were not decision-relevant here."
+        ),
+        "zh-TW": (
+            "兩種引擎都讓應用程式採取相同動作，"
+            "因此上方的差異在本案例中並不影響決策結果。"
+        ),
+    },
+    "usecases.different_action": {
+        "en": (
+            "The two engines led the application to different actions. This is "
+            "the kind of disagreement worth investigating — read the state and "
+            "decide which action you would have wanted."
+        ),
+        "zh-TW": (
+            "兩種引擎讓應用程式採取了不同動作。這正是值得深入檢視的分歧 ——"
+            "請回頭閱讀輸入狀態，並判斷你希望系統採取哪一個動作。"
+        ),
+    },
     # --------------------------------------------------------- playground
     "playground.heading": {"en": "Build your own decision call", "zh-TW": "自行建構決策呼叫"},
     "playground.intro": {
@@ -551,8 +615,90 @@ Jev 有兩種呼叫途徑，本應用皆支援，可於側邊欄切換。
             "這是最快的方式，用來判斷你自己產品中的某個決策是否適合交給 Jev。"
         ),
     },
-    "playground.add": {"en": "Add question", "zh-TW": "新增問題"},
+    "playground.examples": {
+        "en": "Start from an example",
+        "zh-TW": "從範例開始",
+    },
+    "playground.pick_example": {"en": "Example", "zh-TW": "範例"},
+    "playground.load_example": {"en": "Load example", "zh-TW": "載入範例"},
+    "playground.loaded": {"en": "loaded", "zh-TW": "已載入"},
+    "playground.clear": {"en": "Start blank", "zh-TW": "清空重來"},
+    "playground.step_state": {"en": "1 · Program state", "zh-TW": "1 · 程式狀態"},
+    "playground.step_state_help": {
+        "en": (
+            "Everything the model is allowed to know. It cannot look anything "
+            "up, so whatever you leave out simply does not exist as far as the "
+            "answers are concerned."
+        ),
+        "zh-TW": (
+            "模型被允許知道的全部內容。它無法自行查找任何資料，"
+            "因此你沒放進來的東西，對答案而言就等於不存在。"
+        ),
+    },
+    "playground.step_questions": {"en": "2 · Questions", "zh-TW": "2 · 問題"},
+    "playground.step_questions_help": {
+        "en": (
+            "All of these are answered in one call, in parallel. Adding a fourth "
+            "or tenth question costs a few input tokens and almost no extra time."
+        ),
+        "zh-TW": (
+            "這些問題會在單次呼叫中平行回答完畢。"
+            "增加第四個甚至第十個問題，只多花少量輸入 token，幾乎不增加時間。"
+        ),
+    },
+    "playground.step_run": {"en": "3 · Send it", "zh-TW": "3 · 送出"},
+    "playground.type_primer": {
+        "en": "Which question type should I use?",
+        "zh-TW": "我該使用哪一種問題型別？",
+    },
+    "playground.type_primer_body": {
+        "en": (
+            "- **`noul`** — a yes/no judgement, returned as one probability "
+            "between 0 and 1. Use it for anything you would write as an `if`. "
+            "Checking a checklist? One `noul` per item beats one question asking "
+            "for a count.\n"
+            "- **`choice`** — exactly one option from a set you name, up to 255 "
+            "of them. Your code branches on the option key, so name the keys the "
+            "way you would name enum members. Include an explicit `other` so the "
+            "model can say nothing fits instead of picking the closest wrong "
+            "thing.\n"
+            "- **`score`** — a position across 2-10 ordered levels you describe "
+            "in words. The answer can land between levels, which is what lets "
+            "your code apply its own thresholds.\n\n"
+            "Two rules that save time: never ask the model something your code "
+            "can compute exactly, and never hide two judgements inside one "
+            "question."
+        ),
+        "zh-TW": (
+            "- **`noul`** —— 是非判斷，回傳一個 0 到 1 之間的機率。凡是你會寫成 `if` "
+            "的條件都適合用它。要檢查一份清單？為每個項目各問一個 `noul`，"
+            "遠勝於用一個問題要求模型計數。\n"
+            "- **`choice`** —— 從你指定的集合中選出恰好一個選項，最多 255 個。"
+            "你的程式碼會依選項鍵分支，所以請像命名 enum 成員那樣命名這些鍵。"
+            "建議明確加入 `other`，讓模型能表達「都不符合」，"
+            "而不是硬挑一個最接近但錯誤的答案。\n"
+            "- **`score`** —— 在你用文字描述的 2 到 10 個有序等級上的位置。"
+            "答案可以落在等級之間，這正是讓你的程式碼能套用自訂門檻值的關鍵。\n\n"
+            "兩條能省下大量時間的原則：絕不要問模型你的程式碼可以精確算出的事情，"
+            "也絕不要把兩個判斷藏在同一個問題裡。"
+        ),
+    },
+    "playground.add_noul": {"en": "Add yes/no", "zh-TW": "新增是非題"},
+    "playground.add_choice": {"en": "Add pick-one", "zh-TW": "新增單選題"},
+    "playground.add_score": {"en": "Add rating", "zh-TW": "新增評分題"},
     "playground.remove": {"en": "Remove", "zh-TW": "移除"},
+    "playground.options_help": {
+        "en": "One per line. The key before the colon is what your code branches on.",
+        "zh-TW": "每行一個。冒號前的鍵值就是你的程式碼用來分支的依據。",
+    },
+    "playground.levels_help": {
+        "en": "One per line, lowest first. Level numbering starts at 0.",
+        "zh-TW": "每行一個，由低至高。等級編號從 0 開始。",
+    },
+    "playground.noul_help": {
+        "en": "Both descriptions are optional, but spelling them out sharply improves the answer.",
+        "zh-TW": "兩側描述皆為選填，但把它們清楚寫出來能明顯改善答案品質。",
+    },
     "playground.key": {"en": "Key (your code branches on this)", "zh-TW": "鍵值（程式碼依此分支）"},
     "playground.type": {"en": "Type", "zh-TW": "型別"},
     "playground.instructions": {"en": "Instructions", "zh-TW": "問題敘述（instructions）"},

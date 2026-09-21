@@ -7,9 +7,16 @@ from dataclasses import dataclass
 
 import streamlit as st
 
+from . import theme
 from .i18n import DEFAULT_LANG, LANGUAGES, t
 from .jev_client import JEV_MODEL_CHOICES, JevClient, JevConfig
-from .llm_client import LLM_MODEL_CHOICES, LLMClient, LLMConfig
+from .llm_client import (
+    DEFAULT_LLM_MODEL,
+    LLMClient,
+    LLMConfig,
+    llm_model_choices,
+    llm_option,
+)
 
 REASONING_EFFORTS = ["default", "none", "low", "medium", "high"]
 
@@ -25,6 +32,7 @@ class AppSettings:
     timeout: float
     reasoning_effort: str
     temperature: float
+    theme_mode: str = theme.LIGHT
 
     @property
     def simulated(self) -> bool:
@@ -71,17 +79,28 @@ def _default_api_key() -> str:
     return os.environ.get("OPENROUTER_API_KEY", "")
 
 
+def _format_llm_option(model_id: str) -> str:
+    """Label a model with its vendor, flagging anything unavailable in HK."""
+    option = llm_option(model_id)
+    if option is None:
+        return model_id
+    marker = "" if option.available_in_hk else "  ⚠"
+    return f"{model_id}  ·  {option.vendor}{marker}"
+
+
 def _init_state() -> None:
     defaults = {
         "lang": DEFAULT_LANG,
         "api_key": _default_api_key(),
         "transport": "openrouter",
         "jev_model": os.environ.get("JEV_MODEL", JEV_MODEL_CHOICES[0]),
-        "llm_model": os.environ.get("COMPARE_LLM_MODEL", LLM_MODEL_CHOICES[0]),
+        "llm_model": os.environ.get("COMPARE_LLM_MODEL", DEFAULT_LLM_MODEL),
         "enable_llm": True,
         "timeout": 60.0,
         "reasoning_effort": "default",
         "temperature": 0.0,
+        "theme_mode": theme.current(),
+        "show_restricted_models": False,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -103,6 +122,23 @@ def render_sidebar() -> AppSettings:
             horizontal=True,
             key="lang",
         )
+
+        theme_labels = {
+            theme.LIGHT: f":material/light_mode: {t('sidebar.theme_light', lang)}",
+            theme.DARK: f":material/dark_mode: {t('sidebar.theme_dark', lang)}",
+        }
+        theme_mode = st.radio(
+            t("sidebar.appearance", lang),
+            options=list(theme.MODES),
+            format_func=lambda mode: theme_labels[mode],
+            horizontal=True,
+            key="theme_mode",
+        )
+        if theme.supported():
+            # Repaints on the rerun this triggers; no-ops once already in sync.
+            theme.sync(theme_mode)
+        else:
+            st.caption(t("sidebar.theme_unsupported", lang))
 
         st.divider()
         st.subheader(t("sidebar.api", lang))
@@ -149,14 +185,40 @@ def render_sidebar() -> AppSettings:
             help=t("sidebar.enable_llm_help", lang),
             key="enable_llm",
         )
+
+        show_restricted = st.checkbox(
+            t("sidebar.show_restricted", lang),
+            help=t("sidebar.show_restricted_help", lang),
+            key="show_restricted_models",
+            disabled=not enable_llm,
+        )
+        options = llm_model_choices(include_restricted=show_restricted)
+
+        # A previously chosen restricted model must stay in `options`, or
+        # Streamlit would silently reset the widget when the filter re-engages.
+        if st.session_state.get("llm_model") not in options:
+            options = [*options, st.session_state["llm_model"]]
+
         llm_model = st.selectbox(
             t("sidebar.llm_model", lang),
-            options=LLM_MODEL_CHOICES,
+            options=options,
+            format_func=_format_llm_option,
             help=t("sidebar.llm_model_help", lang),
             key="llm_model",
             accept_new_options=True,
             disabled=not enable_llm,
         )
+
+        selected = llm_option(llm_model)
+        if selected is not None and not selected.available_in_hk:
+            st.warning(
+                t("sidebar.restricted_selected", lang),
+                icon=":material/travel_explore:",
+            )
+            if selected.note:
+                st.caption(selected.note.get(lang) or selected.note.get("en", ""))
+        elif not show_restricted:
+            st.caption(t("sidebar.hk_filtered", lang))
 
         with st.expander(t("sidebar.advanced", lang)):
             reasoning_effort = st.selectbox(
@@ -203,4 +265,5 @@ def render_sidebar() -> AppSettings:
         timeout=float(timeout),
         reasoning_effort=reasoning_effort,
         temperature=float(temperature),
+        theme_mode=theme_mode,
     )

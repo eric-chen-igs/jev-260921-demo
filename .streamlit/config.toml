@@ -1,9 +1,18 @@
+# This is the *initial* (light) palette only.
+#
+# Deliberately no `[theme.light]` / `[theme.dark]` subsections: declaring both
+# makes the frontend pick a palette from its own light/dark preference and
+# ignore `theme.base`, which silently breaks the sidebar Appearance control.
+# The dark palette therefore lives in jevdemo/theme.py and is applied at
+# runtime. Keep the values below in step with PALETTES[LIGHT] there.
+
 [theme]
 base = "light"
 primaryColor = "#4F46E5"
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F5F5FA"
 textColor = "#111827"
+borderColor = "#E4E4EF"
 
 [browser]
 gatherUsageStats = false

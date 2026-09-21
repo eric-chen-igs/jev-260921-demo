@@ -163,30 +163,44 @@ def _render_case(case: UseCase, settings: AppSettings) -> None:
         st.code(case.decide_source(), language="python")
 
     st.divider()
-    answers_column, compare_column = st.columns(2)
-    with answers_column:
+
+    if not run.llm.ok:
+        # Jev only: a single column is the clearest presentation.
         st.subheader(t("common.answers"))
         ui.render_answers(run.jev, questions, lang)
         ui.render_raw(run.jev, lang)
+        return
 
-    with compare_column:
-        st.subheader(t("common.llm"))
-        if not run.llm.ok:
-            st.caption(run.llm.error or t("common.disabled"))
-        else:
-            ui.render_comparison_summary(run, lang)
-            ui.render_type_safety(run.llm, lang)
-            ui.render_delta_table(run, lang)
-            # Show what the same branching code would have decided on the LLM's
-            # answers. When this differs, the disagreement is not academic.
-            llm_outcome = case.decide(run.llm, decided_state)
-            st.markdown(f"**{t('usecases.outcome')} ({t('common.llm')})**")
-            same = llm_outcome.action == outcome.action
-            (st.success if same else st.warning)(
-                f"**{case.action_label(llm_outcome.action, lang)}**  \n"
-                f"`{llm_outcome.action}`",
-                icon=ICONS["success"] if same else ICONS["warning"],
-            )
+    # Both engines ran, so compare them aligned row by row.
+    ui.render_side_by_side(run, questions, lang)
+
+    st.divider()
+    st.subheader(t("compare.per_question"))
+    ui.render_delta_table(run, lang)
+
+    # The payoff of the comparison: feed the LLM's answers through the *same*
+    # branching code and see whether the application would have acted
+    # differently. A disagreement that changes the action is the one that matters.
+    llm_outcome = case.decide(run.llm, decided_state)
+    same = llm_outcome.action == outcome.action
+    st.markdown(f"##### {t('usecases.outcome_compare')}")
+    left, right = st.columns(2)
+    with left:
+        st.caption(t("common.jev"))
+        CALLOUTS.get(outcome.level, st.info)(
+            f"**{case.action_label(outcome.action, lang)}**  \n`{outcome.action}`",
+            icon=ICONS.get(outcome.level, ICONS["info"]),
+        )
+    with right:
+        st.caption(t("common.llm"))
+        (st.success if same else st.warning)(
+            f"**{case.action_label(llm_outcome.action, lang)}**  \n"
+            f"`{llm_outcome.action}`",
+            icon=ICONS["success"] if same else ICONS["warning"],
+        )
+    st.caption(
+        t("usecases.same_action") if same else t("usecases.different_action")
+    )
 
 
 def _render_scale_note(result, lang: str) -> None:

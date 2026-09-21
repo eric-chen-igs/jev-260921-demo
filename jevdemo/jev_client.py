@@ -46,13 +46,18 @@ TYPESAFE_SYSTEMONE_URL = "https://api.typesafe.ai/v1/systemone"
 # Published Jev pricing: input only, output free.
 JEV_INPUT_USD_PER_MTOK = 0.042
 
-DEFAULT_OPENROUTER_MODEL = "typesafe/jev-latest"
-DEFAULT_TYPESAFE_MODEL = "jev-latest"
+# Default to a pinned release rather than the moving `jev-latest` alias.
+# TypeSafe's own guidance is to pin once you have tuned thresholds, because
+# `jev-latest` follows new releases and answers can shift underneath you. Every
+# threshold in this repo's ten demos was chosen against 1.13, so pinning is what
+# makes those demos reproducible.
+DEFAULT_OPENROUTER_MODEL = "typesafe/jev-1.13"
+DEFAULT_TYPESAFE_MODEL = "jev-1.13"
 
 # Model slugs OpenRouter currently routes to TypeSafe's Decisions endpoint.
 JEV_MODEL_CHOICES = [
-    "typesafe/jev-latest",
     "typesafe/jev-1.13",
+    "typesafe/jev-latest",
 ]
 
 
@@ -82,7 +87,11 @@ class JevConfig:
         )
 
     def normalised_model(self) -> str:
-        """Align the slug with the transport's namespace convention."""
+        """Align the slug with the transport's namespace convention.
+
+        OpenRouter namespaces the model as `typesafe/jev-...`; TypeSafe's own
+        API expects the bare `jev-...`.
+        """
         model = (self.model or "").strip()
         if self.transport == "typesafe":
             return model.split("/", 1)[-1] or DEFAULT_TYPESAFE_MODEL
